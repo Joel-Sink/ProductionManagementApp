@@ -1,0 +1,65 @@
+﻿select d1.year,
+       d1.month,
+       d1.day,
+       d1.usr_id,
+       sum(d1.total_picked) units
+  from (select to_char(d.trndte, 'yyyy') year,
+               to_char(d.trndte, 'MM') month,
+               to_char(d.trndte, 'dd') day,
+               pck.list_id,
+               d.usr_id,
+               pck.vc_wave_rule wave_type,
+               sum(d.trnqty) total_picked
+          FROM MTV2WMSPRD.dlytrn d
+          left outer
+          join (select distinct p1.vc_ctnnum,
+                       p2.list_id,
+                       p1.vc_wave_rule
+                  from MTV2WMSPRD.pckwrk p1,
+                       MTV2WMSPRD.pckwrk p2
+                 where p1.vc_wave_rule = 'GSI-WAVE-CART'
+                   and p1.wrktyp = 'P'
+                   and p2.wrktyp = 'K'
+                   and p1.ctnnum = p2.subnum) pck
+            on d.to_subnum = pck.vc_ctnnum
+         where (d.trndte between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+           and d.prt_client_id in ('100001', '100002')
+           and d.to_lodnum like 'PICK%'
+           and d.to_arecod = 'RDTSB1'
+         group by d.trndte,
+               pck.list_id,
+               d.usr_id,
+               pck.vc_wave_rule
+        union all
+        select to_char(d.trndte, 'yyyy') year,
+               to_char(d.trndte, 'mm') month,
+               to_char(d.trndte, 'dd') day,
+               pck.list_id,
+               d.usr_id,
+               pck.vc_wave_rule wave_type,
+               sum(d.trnqty) total_picked
+          FROM MTV2WMSPRD.dlytrn d
+          left outer
+          join (select distinct p1.srcloc,
+                       p1.ordnum,
+                       p1.list_id,
+                       p1.vc_wave_rule
+                  from MTV2WMSPRD.pckwrk p1
+                 where p1.vc_wave_rule in ('GSI-WAVE-SORTER', 'GSI-WAVE-PALLET')
+                   and p1.wrktyp = 'P') pck
+            on d.frstol = pck.srcloc
+           and d.ordnum = pck.ordnum
+         where (d.trndte between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+           and d.prt_client_id in ('100001', '100002')
+           AND d.ordnum is not null
+           and d.to_arecod = 'RDTSB1'
+           and pck.vc_wave_rule <> 'GSI-WAVE-CART'
+         group by d.trndte,
+               pck.list_id,
+               d.usr_id,
+               pck.vc_wave_rule) d1
+               where usr_id in (@users)
+ group by d1.year,
+       d1.month,
+       d1.day,
+       d1.usr_id

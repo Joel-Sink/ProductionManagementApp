@@ -1,0 +1,15 @@
+﻿select  to_char(trndte, 'yyyy') year,
+        to_char(trndte, 'mm') month,
+        to_char(trndte, 'dd') day,
+        usr_id,
+        count(distinct lodnum) lps
+   FROM MTV2WMSPRD.dlytrn
+  where (trndte between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+    and oprcod = 'PCKREP'
+    and fr_arecod like 'RSV%'
+    and prt_client_id in ('100001', '100002')
+    and usr_id in (@users)
+  group by to_char(trndte, 'yyyy'),
+        to_char(trndte, 'mm'),
+        to_char(trndte, 'dd'),
+        usr_id

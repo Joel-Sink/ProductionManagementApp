@@ -1,0 +1,17 @@
+﻿select  to_char(dly.trndte, 'yyyy') year,
+        to_char(dly.trndte, 'mm') month,
+        to_char(dly.trndte, 'dd') day,
+        dly.usr_id,
+        count(distinct dly.lodnum) lps
+   from MTV2WMSPRD.usr_inv_rcv usr,
+        MTV2WMSPRD.dlytrn dly
+  where (dly.trndte between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+    and dly.to_arecod like 'PCK%'
+    and dly.to_arecod <> 'PCKRTNS'
+    and dly.prt_client_id in ('100001', '100002')
+    and usr.vc_dlytrn_id = dly.dlytrn_id
+    and dly.usr_id in (@users)
+  group by to_char(dly.trndte, 'yyyy'),
+        to_char(dly.trndte, 'mm'),
+        to_char(dly.trndte, 'dd'),
+        dly.usr_id

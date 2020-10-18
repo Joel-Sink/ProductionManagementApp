@@ -1,0 +1,61 @@
+﻿select report.year,
+        report.month,
+        report.day,
+        report.usr_id,
+        sum(downtime) downtime
+   from (select to_char(downs.tran_time, 'yyyy') year,
+                to_char(downs.tran_time, 'mm') month,
+                to_char(downs.tran_time, 'dd') day,
+                downs.usr_id,
+                downs.downtime,
+                case when (to_char(c.earliest, 'hh24') > 14 or to_char(c.earliest, 'hh24') < 5) then '2nd'
+                     else '1st'
+                end as shift,
+                c.earliest
+           from (select *
+                   from MTV2WMSPRD.adrmst
+                  where adrtyp = 'USR') f
+          inner
+           join (select time.usr_id,
+                        case when usr_id = next_id then trunc(1440 *(time.end_date - time.trndte))
+                        end as downtime,
+                        time.trndte tran_time,
+                        time.end_date next_tran_time
+                   from (select a.*,
+                                b.trndte end_date,
+                                b.usr_id next_id
+                           from (select rownum r,
+                                        t.*
+                                   from (select MTV2WMSPRD.dlytrn.trndte,
+                                                MTV2WMSPRD.dlytrn.usr_id
+                                           from MTV2WMSPRD.dlytrn
+                                          where MTV2WMSPRD.dlytrn.trndte >= to_date('@param0', 'yyyymmdd')
+                                            and MTV2WMSPRD.dlytrn.trndte < to_date('@param1', 'yyyymmdd')
+                                          order by MTV2WMSPRD.dlytrn.usr_id,
+                                                MTV2WMSPRD.dlytrn.trndte) t) a
+                           left outer
+                           join (select rownum - 1 e,
+                                        t.*
+                                   from (select MTV2WMSPRD.dlytrn.trndte,
+                                                MTV2WMSPRD.dlytrn.usr_id
+                                           from MTV2WMSPRD.dlytrn
+                                          where MTV2WMSPRD.dlytrn.trndte >= to_date('@param0', 'yyyymmdd')
+                                            and MTV2WMSPRD.dlytrn.trndte < to_date('@param1', 'yyyymmdd')
+                                          order by dlytrn.usr_id,
+                                                dlytrn.trndte) t) b
+                             on b.e = a.r) time) downs
+             on downs.usr_id = f.adrnam
+           left outer
+           join (select min(MTV2WMSPRD.dlytrn.trndte) earliest,
+                        MTV2WMSPRD.dlytrn.usr_id
+                   from MTV2WMSPRD.dlytrn
+                  where MTV2WMSPRD.dlytrn.trndte >= to_date('@param0', 'yyyymmdd')
+                    and MTV2WMSPRD.dlytrn.trndte < to_date('@param1', 'yyyymmdd')
+                  group by MTV2WMSPRD.dlytrn.usr_id) c
+             on c.usr_id = downs.usr_id
+          where downs.downtime > 5) report
+  where usr_id in (@users)
+  group by year,
+        month,
+        day,
+        usr_id

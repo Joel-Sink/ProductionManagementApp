@@ -1,0 +1,62 @@
+﻿select report.year,
+       report.month,
+       report.day,
+       report.user_id usr_id,
+       sum(report.downtime) downtime
+  from (select downs.user_id,
+               to_char(downs.tran_time, 'yyyy') year,
+               to_char(downs.tran_time, 'mm') month,
+               to_char(downs.tran_time, 'dd') day,
+               downs.downtime
+          from (select user_name adrnam
+                  from MTVAWMOPRD.UCL_USER) f
+         inner
+          join (select time.user_id,
+                       case when time.user_id = next_id then extract(minute from(time.end_date - time.mod_date_time))
+                       end as downtime,
+                       time.mod_date_time tran_time,
+                       time.end_date next_tran_time
+                  from (select a.*,
+                               b.mod_date_time end_date,
+                               b.user_id next_id
+                          from (select rownum r,
+                                       t.*
+                                  from (select MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time,
+                                               MTVAWMOPRD.PROD_TRKG_TRAN.user_id
+                                          from MTVAWMOPRD.PROD_TRKG_TRAN
+                                          left outer
+                                          join MTVAWMOPRD.orders o
+                                            on o.tc_order_id = MTVAWMOPRD.Prod_TRKG_tran.tc_order_id
+                                         where MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time >= to_date('@param0', 'yyyymmdd')
+                                           and MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time < to_date('@param1', 'yyyymmdd')
+                                         order by MTVAWMOPRD.PROD_TRKG_TRAN.user_id,
+                                               MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time) t) a
+                          left outer
+                          join (select rownum - 1 e,
+                                       t.*
+                                  from (select MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time,
+                                               MTVAWMOPRD.PROD_TRKG_TRAN.user_id
+                                          from MTVAWMOPRD.PROD_TRKG_TRAN
+                                          left outer
+                                          join MTVAWMOPRD.orders o
+                                            on o.tc_order_id = MTVAWMOPRD.PROD_TRKG_TRAN.tc_order_id
+                                         where MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time >= to_date('@param0', 'yyyymmdd')
+                                           and MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time < to_date('@param1', 'yyyymmdd')
+                                         order by PROD_TRKG_TRAN.user_id,
+                                               PROD_TRKG_TRAN.mod_date_time) t) b
+                            on b.e = a.r) time) downs
+            on downs.user_id = f.adrnam
+          left outer
+          join (select min(MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time) earliest,
+                       MTVAWMOPRD.PROD_TRKG_TRAN.user_id
+                  from MTVAWMOPRD.PROD_TRKG_TRAN
+                 where MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time >= to_date('@param0', 'yyyymmdd')
+                   and MTVAWMOPRD.PROD_TRKG_TRAN.mod_date_time < to_date('@param1', 'yyyymmdd')
+                 group by MTVAWMOPRD.PROD_TRKG_TRAN.user_id) c
+            on c.user_id = downs.user_id
+         where downs.downtime > 5) report
+ where report.user_id in (@users)
+ group by report.year,
+       report.month,
+       report.day,
+       report.user_id

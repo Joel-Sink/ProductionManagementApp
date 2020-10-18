@@ -1,0 +1,86 @@
+﻿select year, month, day, usr_id, units
+from (select case when client in ('01015', '01274') then 'Berkshire'
+             when client = '01050' then 'Cole Haan'
+             when client = '00635' then 'Decor Steals'
+             end as client,
+             year,
+             month,
+             day,
+             usr_id,
+             units
+from (select  distinct clientid client,
+        extract(year from t1.activity_date) year,
+        extract(month from t1.activity_date) month,
+        extract(day from t1.activity_date) day,
+        T1.user_id usr_id,
+        'PICK' type,
+        sum(ACTIVITY_UNITS) units
+  from (SELECT O.O_FACILITY_ALIAS_ID AS CLIENTID,
+               PTT.MOD_DATE_TIME AS activity_DATE,
+               O.REF_FIELD_8 AS ORDER_TYPE,
+               O.TC_ORDER_ID AS ORDER_NUM,
+               O.TOTAL_NBR_OF_LPN,
+               o.total_nbr_of_units,
+               lpn.tc_lpn_id,
+               PTT.TRAN_TYPE,
+               ptt.tran_code,
+               ptt.menu_optn_name,
+               ptt.module_name,
+               PTT.USER_ID,
+               ptt.from_locn as pick_loc,
+               sum(PTT.NBR_UNITS) AS ACTIVITY_UNITS
+          FROM PROD_TRKG_TRAN PTT
+         INNER
+          JOIN ((ORDERS O
+                  INNER
+                   JOIN ORDER_LINE_ITEM OL
+                     ON O.ORDER_ID = OL.ORDER_ID
+                 AND O.TC_COMPANY_ID = OL.TC_COMPANY_ID)
+                 INNER
+                  JOIN (lpn
+                         INNER
+                          JOIN lpn_detail ld
+                            ON lpn.lpn_id = ld.lpn_id)
+                    ON o.tc_order_id = lpn.tc_order_id
+                AND ol.tc_order_line_id = ld.tc_order_line_id)
+            on Ptt.tc_order_id = o.tc_order_id
+           and ptt.item_id = ol.item_id
+           and ptt.line_item_id = ol.line_item_id
+           and ptt.item_id = ld.item_id
+           and ptt.line_item_id = ld.distribution_order_dtl_id
+           AND ptt.tc_order_id = lpn.tc_order_id
+          LEFT OUTER
+          JOIN TASK_DTL TD
+            ON td.line_item_id = ol.line_item_id
+           AND td.tc_order_id = lpn.tc_order_id
+           and ld.lpn_detail_id = td.carton_seq_nbr
+           AND td.line_item_id = ld.distribution_order_dtl_id
+           and ptt.tc_order_id = td.tc_order_id
+           and ptt.item_id = td.item_id
+           and ptt.line_item_id = td.line_item_id
+           and ptt.task_id = td.task_id
+           and ptt.seq_nbr = td.task_seq_nbr
+         WHERE (PTT.MOD_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+           AND (TD.STAT_CODE < 99 or td.stat_code is null)
+           and (td.task_type <> '90' or td.task_type is null)
+           and O.DO_STATUS > 120
+           AND O.DO_STATUS < 200
+           AND ((PTT.TRAN_TYPE = '500' AND PTT.TRAN_CODE = '001' AND PTT.MODULE_NAME = 'Packing' and ptt.menu_optn_name in ('Pck Cubed Dir', 'Pack Cubed Directed', 'Pck Cubed Dir 26A')) or (PTT.TRAN_TYPE = '500' AND PTT.TRAN_CODE = '007' AND PTT.MODULE_NAME = 'Packing' and ptt.menu_optn_name = 'Pack Pick Cart') OR (PTT.TRAN_TYPE = '600' AND PTT.TRAN_CODE IN ('001', '011') AND PTT.MODULE_NAME = 'Modify' AND PTT.MENU_OPTN_NAME IN ('Pck Pick Cart', 'Pack Pick Cart', 'Pick to Tote', 'Pick To Tote')) or (ptt.tran_type = '500' and ptt.tran_code = '010' and ptt.module_name = 'Packing' and ptt.menu_optn_name in ('Pick to Tote', 'Pick To Tote')))
+         GROUP BY O.O_FACILITY_ALIAS_ID,
+               PTT.MOD_DATE_TIME,
+               O.REF_FIELD_8,
+               O.TC_ORDER_ID,
+               O.TOTAL_NBR_OF_LPN,
+               o.total_nbr_of_units,
+               lpn.tc_lpn_id,
+               PTT.TRAN_TYPE,
+               ptt.tran_code,
+               ptt.menu_optn_name,
+               ptt.module_name,
+               PTT.USER_ID,
+               ptt.from_locn) T1
+ group by clientid, extract(year from t1.activity_date), extract(month from t1.activity_date), extract(Day from t1.activity_date), user_id, 'PICK', to_date('20200929', 'yyyymmdd'), to_date('20200929', 'yyyymmdd')
+ order by 2,
+       1)) report
+       where client = '@client' 
+       and usr_id in (@users)

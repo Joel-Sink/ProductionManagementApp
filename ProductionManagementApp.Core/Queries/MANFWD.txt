@@ -1,0 +1,173 @@
+﻿select year, month, day, usr_id, lps
+from (select case when client_id in ('01015', '01274') then 'Berkshire'
+             when client_id = '01050' then 'Cole Haan'
+             when client_id = '00635' then 'Decor Steals'
+             end as client,
+       year,
+       month,
+       day,
+       user_id usr_id,
+       activity type,
+       sum(nbr_units) units,
+       count(distinct cntr_nbr) lps
+from (select case  when (SQL1.MENU_OPTN_NAME in ('Fill Actv', 'Ptwy User Dir', 'Locate', 'Sort iLPN', 'Sort LPN - Put', 'Fill Actv MVO', 'Sort iLPN MVO', 'Ptwy iLPN MVO')
+        and ((SQL1.TRAN_TYPE = '300' and SQL1.TRAN_CODE = '005') OR (SQL1.TRAN_TYPE = '200' and SQL1.TRAN_CODE = '001'))
+        and SQL1.TO_LOCN is not null
+        and SQL1.TO_LOCN_CLASS = 'A'
+        and SQL1.from_locn_class is null
+        and (SQL1.ASN_TYPE in ('Y', 'X') or sql1.asn_type is null)
+        and sql1.cntr_nbr not like 'RET%'
+        and SQL1.RTN_REASON is null) then 'FWDPTWY'
+            when (SQL1.MENU_OPTN_NAME in ('Sort iLPN', 'Sort LPN - Put', 'Ptwy User Dir', 'Locate', 'Ptwy By Plt', 'LPN Disposition', 'Sort iLPN MVO', 'Ptwy iLPN MVO')
+        and ((SQL1.TRAN_TYPE = '200' and SQL1.TRAN_CODE = '001') or (SQL1.TRAN_TYPE = '200' and SQL1.TRAN_CODE = '011') OR (SQL1.TRAN_TYPE = '300' and SQL1.TRAN_CODE = '005'))
+        and SQL1.TO_LOCN_class = 'R'
+        and ((SQL1.ASN_TYPE in ('Y', 'X', 'R') or sql1.asn_type is null) or (sql1.asn_type is null and sql1.cntr_nbr like 'RET%'))
+        and SQL1.from_locn_class is null) then 'RSVPTWY'
+        end as activity, 
+        extract(year from SQL1.WORK_DATE) year,
+        extract(month from SQL1.WORK_DATE) month,
+        extract(day from SQL1.WORK_DATE) day,
+        SQL1.USER_ID,
+        SQL1.CLIENT_ID,
+        SQL1.CNTR_NBR cntr_nbr,
+        SQL1.NBR_UNITS nbr_units
+        from (SELECT IC.COLOR_DESC AS CLIENT_ID,
+        PTT.TRAN_TYPE, 
+        PTT.TRAN_CODE, 
+        PTT.MENU_OPTN_NAME, 
+        PTT.FROM_LOCN, 
+        ( SELECT distinct locn_class FROM LOCN_HDR WHERE PTT.FROM_LOCN = LOCN_ID ) AS from_locn_class,
+        ( SELECT distinct WORK_GRP FROM LOCN_HDR WHERE PTT.FROM_LOCN = LOCN_ID ) AS FROM_WRKGRP,
+        PTT.TO_LOCN, 
+        ( SELECT distinct locn_class FROM LOCN_HDR WHERE PTT.TO_LOCN = LOCN_ID ) AS to_locn_class,
+        ( SELECT distinct WORK_GRP FROM LOCN_HDR WHERE PTT.TO_LOCN = LOCN_ID ) AS TO_WRKGRP, 
+        PTT.TASK_ID, 
+        PTT.CNTR_NBR, 
+        case when rp.ref_field_4 is not null then rp.ref_field_4 
+            else ptt.ref_field_1 
+        end as asn_nbr, 
+        PTT.ITEM_ID, 
+        PTT.CREATE_DATE_TIME AS WORK_DATE_TIME,
+        TRUNC(PTT.CREATE_DATE_TIME) AS WORK_DATE,
+        EXTRACT(HOUR FROM PTT.CREATE_DATE_TIME) AS WORK_HOUR, 
+        PTT.USER_ID, 
+        PTT.NBR_UNITS, 
+        case when rp.ref_field_1 is not null then rp.ref_field_1 
+            else (SELECT distinct ASN.REF_FIELD_2 FROM ASN WHERE PTT.REF_FIELD_1 = ASN.TC_ASN_ID) 
+        end AS ASN_TYPE, 
+        case when rp.ref_field_13 is not null then rp.ref_field_13
+            else rp.ref_field_14
+        end AS RTN_REASON, 
+        case when PTT.CNTR_NBR is not null and ptt.menu_optn_name = 'Ptwy User Dir' and ptt.from_locn is null and rp.ref_field_4 is null and rp.ref_field_1 is null then (select distinct ptt2.rsn_code from prod_trkg_tran ptt2 where ptt2.menu_optn_name = 'Create iLPN' and ptt2.cntr_nbr = ptt.cntr_nbr and ptt2.item_id = ptt.item_id and ptt2.rsn_code in ('DM' , 'MS' , 'MSH' ) )
+            else null 
+        end as lpn_created         
+        FROM PROD_TRKG_TRAN PTT 
+        inner join item_cbo ic on ptt.item_id = ic.item_id 
+        left outer join c_returns_pix rp on rp.ilpn_nbr = ptt.cntr_nbr         
+        WHERE PTT.MENU_OPTN_NAME IN ('Fill Actv' ,'Ptwy User Dir' ,'Locate' ,'Ret Fill Actv' ,'Ptwy By Plt' ,'Sort iLPN' , 'Sort LPN - Put' , 'Fill Actv MVO' ,'Sort iLPN MVO' ,'Ptwy iLPN MVO' ,'LPN Disposition' ) 
+        AND ((PTT.TRAN_TYPE = '300' AND PTT.TRAN_CODE = '005' ) OR (PTT.TRAN_TYPE = '200' AND PTT.TRAN_CODE = '001' )) 
+        and (ptt.create_date_time  between to_date(to_char(current_timestamp - 1, 'yyyymmdd'), 'yyyymmdd') and current_timestamp)
+        
+         
+UNION ALL 
+select distinct ic.color_desc,
+    T1.TRAN_TYPE,
+    T1.TRAN_CODE,
+    T1.MENU_OPTN_NAME, 
+    T1.FROM_LOCN, 
+    T1.from_locn_class,
+    T1.FROM_WRKGRP,
+    T1.TO_LOCN, 
+    T1.to_locn_class, 
+    T1.TO_WRKGRP,
+    T1.TASK_ID, 
+    T1.CNTR_NBR,
+    T1.asn_nbr, 
+    T1.ITEM_ID,
+    T1.WORK_DATE_TIME,
+    T1.WORK_DATE,
+    T1.WORK_HOUR, 
+    T1.USER_ID, 
+    T1.NBR_UNITS, 
+    T1.ASN_TYPE, 
+    T1.RTN_REASON,
+    t1.lpn_created
+from lpn 
+    inner join ( select PTT.TRAN_TYPE,
+                        PTT.TRAN_CODE,
+                        PTT.MENU_OPTN_NAME, 
+                        PTT.FROM_LOCN, 
+                        ( SELECT distinct locn_class FROM LOCN_HDR WHERE PTT.FROM_LOCN = LOCN_ID ) AS from_locn_class, 
+                        ( SELECT distinct WORK_GRP FROM LOCN_HDR WHERE PTT.FROM_LOCN = LOCN_ID ) AS FROM_WRKGRP, 
+                        PTT.TO_LOCN,
+                        ( SELECT distinct locn_class FROM LOCN_HDR WHERE PTT.TO_LOCN = LOCN_ID ) AS to_locn_class, 
+                        ( SELECT distinct WORK_GRP FROM LOCN_HDR WHERE PTT.TO_LOCN = LOCN_ID ) AS TO_WRKGRP,
+                        PTT.TASK_ID,
+                        PTT.CNTR_NBR,
+                        ptt.ref_field_1 as asn_nbr, 
+                        PTT.ITEM_ID, 
+                        PTT.CREATE_DATE_TIME AS WORK_DATE_TIME,
+                        TRUNC(PTT.CREATE_DATE_TIME) AS WORK_DATE,
+                        EXTRACT(HOUR FROM PTT.CREATE_DATE_TIME) AS WORK_HOUR,
+                        PTT.USER_ID, 
+                        PTT.NBR_UNITS, 
+                        (SELECT distinct ASN.REF_FIELD_2 FROM ASN WHERE PTT.REF_FIELD_1 = ASN.TC_ASN_ID) AS ASN_TYPE,
+                        (SELECT DISTINCT PROD_STAT FROM ASN, ASN_DETAIL AD WHERE PTT.REF_FIELD_1 = ASN.TC_ASN_ID AND PTT.ITEM_ID = AD.SKU_ID AND ASN.ASN_ID = AD.ASN_ID AND ASN.REF_FIELD_2 = 'W' ) AS RTN_REASON,
+                        case when PTT.CNTR_NBR is not null and ptt.menu_optn_name = 'Ptwy User Dir' and ptt.from_locn is null then (select distinct ptt2.rsn_code from prod_trkg_tran ptt2 where ptt2.menu_optn_name = 'Create iLPN' and ptt2.cntr_nbr = ptt.cntr_nbr and ptt2.item_id = ptt.item_id and ptt2.rsn_code in ('DM' , 'MS' , 'MSH' ))
+                            else null 
+                        end lpn_created 
+                        FROM PROD_TRKG_TRAN PTT 
+                        WHERE PTT.MENU_OPTN_NAME IN ('LPN Disposition' )
+                        and (PTT.TRAN_TYPE = '200' AND PTT.TRAN_CODE = '011' )
+                        and (PTT.MOD_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))) T1 
+    on t1.cntr_nbr = lpn.tc_parent_lpn_id 
+    inner join item_cbo ic on ic.item_name = lpn.item_name 
+UNION ALL 
+SELECT IC.COLOR_DESC AS CLIENT_ID, 
+       PTT.TRAN_TYPE, 
+       PTT.TRAN_CODE, 
+       PTT.MENU_OPTN_NAME, 
+       PTT.FROM_LOCN, 
+       ( SELECT distinct locn_class FROM LOCN_HDR WHERE PTT.FROM_LOCN = LOCN_ID ) AS from_locn_class, 
+       ( SELECT distinct WORK_GRP FROM LOCN_HDR WHERE PTT.FROM_LOCN = LOCN_ID ) AS FROM_WRKGRP,
+       PTT.TO_LOCN,
+       ( SELECT distinct locn_class FROM LOCN_HDR WHERE PTT.TO_LOCN = LOCN_ID ) AS to_locn_class, 
+       ( SELECT distinct WORK_GRP FROM LOCN_HDR WHERE PTT.TO_LOCN = LOCN_ID ) AS TO_WRKGRP, 
+       PTT.TASK_ID,
+       PTT.CNTR_NBR, 
+       ptt.ref_field_1 as asn_nbr, 
+       PTT.ITEM_ID, 
+       PTT.CREATE_DATE_TIME AS WORK_DATE_TIME, 
+       TRUNC(PTT.CREATE_DATE_TIME) AS WORK_DATE, 
+       EXTRACT(HOUR FROM PTT.CREATE_DATE_TIME) AS WORK_HOUR, 
+       PTT.USER_ID, 
+       PTT.NBR_UNITS, 
+       (SELECT distinct ASN.REF_FIELD_2 FROM ASN WHERE PTT.REF_FIELD_1 = ASN.TC_ASN_ID) AS ASN_TYPE, 
+       (SELECT DISTINCT PROD_STAT FROM ASN, ASN_DETAIL AD WHERE PTT.REF_FIELD_1 = ASN.TC_ASN_ID AND PTT.ITEM_ID = AD.SKU_ID AND ASN.ASN_ID = AD.ASN_ID AND ASN.REF_FIELD_2 = 'W' ) AS RTN_REASON, 
+       case when PTT.CNTR_NBR is not null and ptt.menu_optn_name = 'Ptwy User Dir' and ptt.from_locn is null then (select distinct ptt2.rsn_code 
+                                                                                                                        from prod_trkg_tran ptt2 
+                                                                                                                        where ptt2.menu_optn_name = 'Create iLPN' 
+                                                                                                                        and ptt2.cntr_nbr = ptt.cntr_nbr
+                                                                                                                        and ptt2.item_id = ptt.item_id 
+                                                                                                                        and ptt2.rsn_code in ('DM' , 'MS' , 'MSH' )) 
+            else null 
+       end as lpn_created 
+       FROM PROD_TRKG_TRAN PTT 
+       inner join lpn on ptt.cntr_nbr = lpn.tc_lpn_id 
+       inner join item_cbo ic on ptt.item_id = ic.item_id
+WHERE PTT.MENU_OPTN_NAME IN ('LPN Disposition' ) 
+and (PTT.TRAN_TYPE = '200' AND PTT.TRAN_CODE = '011' ) 
+and (PTT.MOD_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))) SQL1) stats
+where activity is not null
+and activity = 'FWDPTWY'
+group by case when client_id in ('01015', '01274') then 'Berkshire'
+             when client_id = '01050' then 'Cole Haan'
+             when client_id = '00635' then 'Decor Steals'
+             end,
+       year,
+       month,
+       day,
+       user_id,
+       activity) report 
+       where client = '@client'
+       and usr_id in (@users)

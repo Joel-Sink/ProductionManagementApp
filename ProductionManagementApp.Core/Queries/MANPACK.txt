@@ -1,0 +1,50 @@
+﻿select year, month, day, usr_id, orders, units
+from (select  case when clientid in ('01015', '01274') then 'Berkshire'
+             when clientid = '01050' then 'Cole Haan'
+             when clientid = '00635' then 'Decor Steals'
+             end as client,
+        extract(year from t1.activity_date) year,
+        extract(month from t1.activity_date) month,
+        extract(day from t1.activity_date) day,
+        t1.user_id usr_id,
+        'PACK' type,      
+        sum(ACTIVITY_UNITS) units,
+        count(ACTIVITY_UNITS) orders
+  from (SELECT O.O_FACILITY_ALIAS_ID AS CLIENTID,
+       PTT.MOD_DATE_TIME AS activity_DATE,
+       O.REF_FIELD_8 AS ORDER_TYPE,
+       O.TC_ORDER_ID AS ORDER_NUM,
+       O.TOTAL_NBR_OF_LPN,
+       o.total_nbr_of_units,
+       lpn.tc_lpn_id,
+       PTT.TRAN_TYPE,
+       ptt.tran_code,
+       ptt.menu_optn_name,
+       ptt.module_name,
+       PTT.USER_ID,
+       lpn.total_lpn_qty as ACTIVITY_UNITS
+  FROM PROD_TRKG_TRAN PTT
+ INNER
+  JOIN ORDERS O
+    ON Ptt.tc_order_id = o.tc_order_id
+ INNER
+  JOIN lpn
+    ON lpn.tc_order_id = o.tc_order_id
+   AND ptt.tc_order_id = lpn.tc_order_id
+   and ptt.cntr_nbr = lpn.tc_lpn_id
+ WHERE (PTT.MOD_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+   AND O.DO_STATUS < 200
+   AND ((PTT.TRAN_TYPE = '600' AND PTT.TRAN_CODE = '002' AND PTT.REF_FIELD_2 = 3 AND PTT.MENU_OPTN_NAME IN ('Pck From Tote', 'Audit oLPN', 'Audit OLPN') AND PTT.MODULE_NAME = 'Modify' AND new_stat_code in (20)) OR (PTT.TRAN_TYPE = '500' AND PTT.TRAN_CODE = '001' AND PTT.MENU_OPTN_NAME IN ('Pck From Tote_26A') AND NEW_STAT_CODE in (20)) OR (PTT.TRAN_TYPE = 'C00' AND PTT.TRAN_CODE = '043' AND PTT.MENU_OPTN_NAME IN ('CUSTOM PACK OLPN FROM TI') AND NEW_STAT_CODE in (20)))) T1
+ group by   case when clientid in ('01015', '01274') then 'Berkshire'
+             when clientid = '01050' then 'Cole Haan'
+             when clientid = '00635' then 'Decor Steals'
+             end,
+        extract(year from t1.activity_date),
+        extract(month from t1.activity_date),
+            extract(day from t1.activity_date),
+            user_id, 
+            'PACK',
+            to_date('20200929', 'yyyymmdd'),
+            to_date('20200929', 'yyyymmdd')) report
+            where client = '@client'
+            and usr_id in (@users)

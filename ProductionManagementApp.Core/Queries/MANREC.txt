@@ -1,0 +1,218 @@
+﻿select year, month, day, usr_id, lps 
+from (select case when client in ('01015', '01274') then 'Berkshire'
+             when client = '01050' then 'Cole Haan'
+             when client = '00635' then 'Decor Steals'
+             end as client,
+       a.year,
+       a.month,
+       a.day,
+       a.user_id usr_id,
+       sum(nbr_lpns) lps
+from (SELECT
+            CASE
+              WHEN SQL1.MENU_OPTN_NAME IN ('Recv / Sort', 'Recv Item Lvl', 'Recv Split Case','Recv Split Case ELC','Recv Split Case ELC ',
+                 'Recv No Sort NOASN' ,'Recv Item Lvl','Recv Split Case','Recv No Sort MVO', 'Recv No Sort Split',
+                 'Recv No Sort VSH', 'Sort iLPN MVO','Recv No Sort ROME')
+              AND (SQL1.ASN_TYPE       IN ('Y', 'X') 
+              OR
+                CASE
+                  WHEN (SQL1.ASN_TYPE IS NULL
+                  AND SQL1.PO_CNT =0)
+                  THEN 'Y'
+                  WHEN (SQL1.ASN_TYPE IS NULL
+                  AND SQL1.PO_CNT = 0)
+                  THEN 'X'
+                END IN ('Y', 'X'))  and sql1.rcv_qty_type = 'std'               THEN 'Received - 120'
+            END WORK_FUNCTION,
+            extract(year from SQL1.WORK_DATE) year,
+            extract(month from SQL1.WORK_DATE) month,
+            extract(day from SQL1.WORK_DATE) day,
+            SQL1.WORK_HOUR hour,
+            SQL1.USER_ID ,
+            SQL1.CLIENT_ID client,
+            SUM(SQL1.NBR_UNITS)  nbr_units,
+            COUNT(SQL1.CNTR_NBR) nbr_lpns
+          FROM
+                  (    SELECT TRUNC(PT.CREATE_DATE_TIME)       AS WORK_DATE,
+                        EXTRACT(HOUR FROM PT.CREATE_DATE_TIME) AS WORK_HOUR,
+                        PT.USER_ID,
+                        PT.CREATE_DATE_TIME AS WORK_DATE_TIME,
+                        ic.color_desc        AS CLIENT_ID,
+                        pt.MENU_OPTN_NAME,
+                        pt.CNTR_NBR, 
+                        (SELECT ASN.REF_FIELD_2 FROM ASN WHERE pt.REF_FIELD_1 = ASN.TC_ASN_ID
+                        )               AS ASN_TYPE,
+                        pt.REF_FIELD_1 AS ASN_NBR,
+                        (SELECT COUNT(DISTINCT ad.tc_purchase_orders_id)
+                        FROM ASN,
+                          asn_detail ad
+                        WHERE asn.asn_id  = ad.asn_id
+                        AND ASN.TC_ASN_ID = pt.ref_field_1
+                        ) AS po_cnt,
+                        pt.ITEM_ID,
+                        pt.NBR_UNITS,
+                        q3.lpn_count,  
+                        ipc.package_uom_id,
+                        ipc.quantity, 
+                        case when ipc.package_uom_id = '92' 
+                                then 'std' 
+                             when ipc.package_uom_id = '92' and pt.nbr_units = ipc.quantity
+                                then 'bulk'
+                             when ipc.package_uom_id is null 
+                                then case when (select max(ipc2.quantity) from item_package_cbo ipc2 where ipc2.package_uom_id = '92' and ipc2.is_std = 1 and ipc2.item_id = pt.item_id) = ipc.quantity
+                                      then 'bulk'
+                                     else 'std'
+                                     end
+                             else 'std'
+                        end rcv_qty_type                
+                      FROM PROD_TRKG_TRAN pt
+                         left outer join (lpn inner join lpn_detail ld on lpn.lpn_id = ld.lpn_id) 
+                       on pt.cntr_nbr = lpn.tc_lpn_id 
+                       left outer JOIN (item_cbo ic 
+                        inner join item_package_cbo ipc on  ic.item_id = ipc.item_id) 
+                        ON pt.item_id = ic.item_id  and pt.item_id = ipc.item_id and ( ld.std_pack_qty = ipc.quantity or ld.std_pack_qty = 0)                       
+                      LEFT OUTER JOIN
+                        (SELECT q2.tc_lpn_id,
+                          q2.tc_asn_id,
+                          Q2.LPN_COUNT
+                        FROM
+                          (SELECT TC_LPN_ID,
+                            Q1.PARENT_ID,
+                            q1.tc_asn_id,
+                            Q1.LPN_COUNT
+                          FROM LPN,
+                            (SELECT TC_PARENT_LPN_ID AS PARENT_ID,
+                              tc_asn_id,
+                              COUNT(DISTINCT TC_LPN_ID) AS LPN_COUNT
+                            FROM LPN
+                            WHERE INBOUND_OUTBOUND_INDICATOR = 'I'
+                            GROUP BY TC_PARENT_LPN_ID,
+                              tc_asn_id
+                            ORDER BY TC_PARENT_LPN_ID,
+                              tc_asn_id
+                            ) Q1
+                          WHERE INBOUND_OUTBOUND_INDICATOR = 'I'
+                          AND TC_PARENT_LPN_ID             = Q1.PARENT_ID
+                          ORDER BY 2,1
+                          ) Q2
+                        ) Q3
+                      ON pt.CNTR_NBR           = q3.TC_LPN_ID
+                      AND pt.ref_field_1       = q3.tc_asn_id
+                      WHERE pt.MENU_OPTN_NAME IN ('Recv / Sort','Recv No Sort', 'Recv No Sort NOASN' ,'Recv Item Lvl','Recv Split Case','Recv Split Case ELC','Recv Split Case ELC ', 'Recv No Sort MVO', 'Recv No Sort VSH', 'Sort iLPN MVO' , 'Recv No Sort ROME','Rtrn No Sort' ,  'Recv No Sort Split'  )
+                      AND pt.TRAN_TYPE         = '100'
+                      AND pt.TRAN_CODE        IN ('001','002')
+                      and ( (ipc.package_uom_id = '92' and ipc.is_std = 1) or (ipc.package_uom_id = '92' and ipc.is_std = 0) or ipc.package_uom_id is null  )
+                     and (pt.CREATE_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+                                      
+
+            UNION ALL
+                    SELECT TRUNC(PT.CREATE_DATE_TIME)        AS WORK_DATE,
+                      EXTRACT(HOUR FROM PT.CREATE_DATE_TIME) AS WORK_HOUR,
+                      pt.user_id,
+                      PT.CREATE_DATE_TIME AS WORK_DATE_TIME,
+                      pt.ref_field_10     AS client_id,
+                      'Man Rcpt as Adjmt' menu_optn_name,
+                      pt.case_nbr cntr_nbr,
+                      NULL asn_type,
+                      NULL asn_nbr,
+                      0 po_cnt,
+                      pt.item_id,
+                      pt.invn_adjmt_qty nbr_units,
+                      1 lpn_count,
+                      ipc.package_uom_id,
+                      ipc.quantity,
+                        case when ipc.package_uom_id = '92' 
+                                then 'std' 
+                             when ipc.package_uom_id = '92' and pt.invn_adjmt_qty = ipc.quantity
+                                then 'bulk'
+                             when ipc.package_uom_id is null 
+                                then case when (select max(ipc2.quantity) from item_package_cbo ipc2 where ipc2.package_uom_id = '92' and ipc2.is_std = 1 and ipc2.item_id = pt.item_id) = ipc.quantity
+                                      then 'bulk'
+                                     else 'std'
+                                     end
+                             else 'std'
+                        end rcv_qty_type                    
+                    FROM pix_tran pt left outer join (lpn inner join lpn_detail ld on lpn.lpn_id = ld.lpn_id) 
+                       on pt.case_nbr = lpn.tc_lpn_id 
+                       left outer join item_package_cbo ipc on  pt.item_id = ipc.item_id and ( ld.std_pack_qty = ipc.quantity or ld.std_pack_qty = 0)
+                    WHERE pt.tran_type       = '300'
+                    AND pt.tran_code         = '01'
+                    AND pt.actn_code         = '01'
+                    AND pt.rsn_code          in ( 'RP', 'PD') 
+                      and ( (ipc.package_uom_id = '92' and ipc.is_std = 1) or (ipc.package_uom_id = '92' and ipc.is_std = 0) or ipc.package_uom_id is null )
+                    and (pt.CREATE_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+                     
+
+           UNION ALL
+                    SELECT TRUNC(PT.CREATE_DATE_TIME)        AS WORK_DATE,
+                      EXTRACT(HOUR FROM PT.CREATE_DATE_TIME) AS WORK_HOUR,
+                      pt.user_id,
+                      PT.CREATE_DATE_TIME AS WORK_DATE_TIME,
+                      case when rp.ref_field_9 is not null then rp.ref_field_9 when pt.ref_field_10 is not null then pt.ref_field_10 else null end  AS client_id,
+                      'FF Only Return' menu_optn_name,
+                      pt.case_nbr cntr_nbr,
+                      'R' asn_type,
+                      NULL asn_nbr,
+                      0 po_cnt,
+                      pt.item_id,
+                      pt.invn_adjmt_qty nbr_units,
+                      1 lpn_count,
+                      ipc.package_uom_id,
+                      ipc.quantity,
+                        case when ipc.package_uom_id = '92' 
+                                then 'std' 
+                             when ipc.package_uom_id = '92' and pt.invn_adjmt_qty = ipc.quantity
+                                then 'bulk'
+                             when ipc.package_uom_id is null 
+                                then case when (select max(ipc2.quantity) from item_package_cbo ipc2 where ipc2.package_uom_id = '92' and ipc2.is_std = 1 and ipc2.item_id = pt.item_id) = ipc.quantity
+                                      then 'bulk'
+                                     else 'std'
+                                     end
+                             else 'std'
+                        end rcv_qty_type
+                      
+                    FROM pix_tran pt left outer join (lpn inner join lpn_detail ld on lpn.lpn_id = ld.lpn_id) 
+                       on pt.case_nbr = lpn.tc_lpn_id 
+                       left outer join item_package_cbo ipc on  pt.item_id = ipc.item_id and ( ld.std_pack_qty = ipc.quantity or ld.std_pack_qty = 0)
+                    LEFT OUTER JOIN C_RETURNS_PIX RP
+                    ON Pt.TRAN_NBR           = RP.TRAN_NBR
+                    WHERE ( (pt.tran_type     = '606'
+                    AND pt.tran_code         = '03'
+                    AND pt.actn_code        IS NULL)
+                    OR (pt.tran_type         = '606'
+                    AND pt.tran_code         = '04' 
+                    and pt.actn_code is null ) ) and (pt.ref_field_8 is null and pt.ref_field_9 is null ) and rp.tran_nbr is not null
+                    and ((ipc.package_uom_id = '92' and ipc.is_std = 0)  or ipc.package_uom_id is null )
+                    and (pt.CREATE_DATE_TIME between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))) SQL1
+
+  GROUP BY    CASE
+              WHEN SQL1.MENU_OPTN_NAME IN ('Recv / Sort', 'Recv Item Lvl', 'Recv Split Case','Recv Split Case ELC','Recv Split Case ELC ',
+                 'Recv No Sort NOASN' ,'Recv Item Lvl','Recv Split Case','Recv No Sort MVO', 'Recv No Sort Split',
+                 'Recv No Sort VSH', 'Sort iLPN MVO','Recv No Sort ROME')
+              AND (SQL1.ASN_TYPE       IN ('Y', 'X') 
+              OR
+                CASE
+                  WHEN (SQL1.ASN_TYPE IS NULL
+                  AND SQL1.PO_CNT      =0)
+                  THEN 'Y'
+                  WHEN (SQL1.ASN_TYPE IS NULL
+                  AND SQL1.PO_CNT = 0)
+                  THEN 'X'
+                  END IN ('Y', 'X'))  and sql1.rcv_qty_type = 'std' THEN 'Received - 120'
+            END ,
+             SQL1.WORK_DATE ,
+            SQL1.WORK_HOUR ,
+            SQL1.USER_ID ,
+            SQL1.CLIENT_ID) a
+            where work_function is not null 
+            group by case when client in ('01015', '01274') then 'Berkshire'
+             when client = '01050' then 'Cole Haan'
+             when client = '00635' then 'Decor Steals'
+             end,
+       a.year,
+       a.month,
+       a.day,
+       a.user_id,
+       'REC' ) report
+       where client = '@client'
+       and usr_id in (@users)

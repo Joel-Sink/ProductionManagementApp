@@ -1,0 +1,82 @@
+﻿select year,
+       month,
+       day,
+       badge usr_id,
+       sum(pickminutes) pickminutes,
+       sum(packminutes) packminutes,
+       sum(replensminutes) replensminutes,
+       sum(recminutes) recminutes,
+       sum(fwdminutes) fwdminutes,
+       sum(rsvminutes) rsvminutes
+  from (select year,
+               month,
+               day,
+               badge,
+               case when task = 'PICK' then minutes
+                    else 0
+               end as pickminutes,
+               case when task = 'PACK' then minutes
+                    else 0
+               end as packminutes,
+               case when task = 'REPLENS' then minutes
+                    else 0
+               end as replensminutes,
+               case when task = 'REC' then minutes
+                    else 0
+               end as recminutes,
+               case when task = 'FWD' then minutes
+                    else 0
+               end as fwdminutes,
+               case when task = 'RSV' then minutes
+                    else 0
+               end as rsvminutes
+          from (select timematch.year,
+                       timematch.month,
+                       timematch.day,
+                       a.badgenum badge,
+                       case when to_char(a.startdtm, 'dd') < timematch.day then trunc(1440 *(a.enddtm - to_date(timematch.year || timematch.month || timematch.day, 'yyyymmdd')))
+                            when to_char(a.enddtm, 'dd') > timematch.day then trunc(1440 *(to_date(timematch.year || timematch.month || timematch.day, 'yyyymmdd') - a.startdtm))
+                            else trunc(1440 *(a.enddtm - a.startdtm))
+                       end as minutes,
+                       case when a.laborlev5nm in ('104046', '104049') then 'PICK'
+                            when a.laborlev5nm in ('105048', '105049') then 'PACK'
+                            when a.laborlev5nm = '103042' then 'FWD'
+                            when a.laborlev5nm = '103043' then 'RSV'
+                            when a.laborlev5nm = '103082' then 'REPLENS'
+                            when a.laborlev5nm = '103040' then 'REC'
+                       end as task
+                  from (select to_char(a, 'yyyy') year,
+                               to_char(a, 'mm') month,
+                               to_char(a, 'dd') day
+                          from (select rownum - 1 + to_date('@param0', 'yyyymmdd') a
+                                  from all_objects
+                                 where rownum < to_date('@param1', 'yyyymmdd') - to_date('@param0', 'yyyymmdd') + 2)) timematch
+                 inner
+                  join (select distinct c.badgenum,
+                               c.eventdtm,
+                               c.startdtm,
+                               c.enddtm,
+                               c.laborlev5nm
+                          from (select b.badgenum,
+                                       t.eventdtm,
+                                       t.startdtm,
+                                       case when t.enddtm > to_date('@param1', 'yyyymmdd') then to_date('@param1', 'yyyymmdd')
+                                            else t.enddtm
+                                       end as enddtm,
+                                       l.laborlev5nm
+                                  from badgeassign b,
+                                       timesheetitem t,
+                                       laboracct l
+                                 where b.personid = t.employeeid
+                                   and l.laboracctid = t.laboracctid
+                                   and t.startdtm < to_date('@param1', 'yyyymmdd')
+                                   and t.enddtm > to_date('@param0', 'yyyymmdd')) c) a
+                    on (to_char(a.startdtm, 'yyyy') = timematch.year and to_char(a.startdtm, 'mm') = timematch.month and to_char(a.startdtm, 'dd') = timematch.day)
+                    or (to_char(a.enddtm, 'yyyy') = timematch.year and to_char(a.enddtm, 'mm') = timematch.month and to_char(a.startdtm, 'dd') = timematch.day)
+                    or (a.startdtm < to_date(timematch.year || timematch.month || timematch.day, 'yyyymmdd') and a.enddtm > to_date(timematch.year || timematch.month || timematch.day, 'yyyymmdd'))
+                         where badgenum in (@badges)) b
+                 where task is not null)
+         group by year,
+               month,
+               day,
+               badge

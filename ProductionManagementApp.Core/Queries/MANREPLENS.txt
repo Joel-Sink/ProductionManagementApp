@@ -1,0 +1,32 @@
+﻿select year, month, day, usr_id, lps
+from (select case when ic.color_desc in ('01015', '01274') then 'Berkshire'
+             when ic.color_desc = '01050' then 'Cole Haan'
+             when ic.color_desc = '00635' then 'Decor Steals'
+             end as client,
+EXTRACT(year FROM CAST((th.mod_date_time) AS TIMESTAMP(4))) year,
+       EXTRACT(Month FROM CAST((th.mod_date_time) AS TIMESTAMP(2))) month,
+       EXTRACT(DAY FROM CAST((th.mod_date_time) AS TIMESTAMP(2))) day,
+       th.USER_ID usr_id,
+       sum(QTY_PULLD) as units,
+       count(distinct td.cntr_nbr) lps
+  from TASK_HDR th,
+       TASK_DTL td,
+       locn_hdr lh,
+       item_cbo ic
+ where th.task_id = td.task_id
+   and td.dest_locn_id = lh.locn_id
+   and td.item_id = ic.item_id
+   and th.task_type = '01'
+   and th.STAT_CODE = '90'
+   and (th.mod_date_time between to_date('@param0', 'yyyymmdd') and to_date('@param1', 'yyyymmdd'))
+ group by case when ic.color_desc in ('01015', '01274') then 'Berkshire'
+             when ic.color_desc = '01050' then 'Cole Haan'
+             when ic.color_desc = '00635' then 'Decor Steals'
+             end,
+EXTRACT(year FROM CAST((th.mod_date_time) AS TIMESTAMP(4))),
+       EXTRACT(Month FROM CAST((th.mod_date_time) AS TIMESTAMP(2))),
+       EXTRACT(DAY FROM CAST((th.mod_date_time) AS TIMESTAMP(2))),
+       th.USER_ID) report
+       where client = '@client'
+       and usr_id in (@users)
+       
