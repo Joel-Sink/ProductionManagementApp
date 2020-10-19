@@ -39,7 +39,7 @@ namespace ProductionManagementApp.WPF.Views
                 }
 
                 _createUserInteraction = value;
-                _createUserInteraction.WeakSubscribe(OnCreateUserInteractionRequested);
+                _createUserInteraction.Requested += OnCreateUserInteractionRequested;
             }
         }
 

@@ -81,7 +81,20 @@ namespace ProductionManagementApp.Core.ViewModels
         public List<string> Users { get; set; }
 
         public MvxCommand LoadReports { get; set; }
-        public MvxCommand HistoricalDowntime { get; set; }
+        public MvxCommand RunReport { get; set; }
+
+        private string _selectedTab;
+
+        public string SelectedTab
+        {
+            get { return _selectedTab; }
+            set 
+            {
+                _selectedTab = value;
+                RaisePropertyChanged(() => SelectedTab);
+            }
+        }
+
 
         private string _num;
 

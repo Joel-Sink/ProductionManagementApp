@@ -16,33 +16,7 @@
         </Grid.RowDefinitions>
 
         <TextBox Text="{Binding Num, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}" Grid.Row="0"/>
-        <TabControl Grid.Row="1" SelectionChanged="TabControl_SelectionChanged">
-            <TabItem Name="Historical" Header="Historical Downtime and UPH">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="300"/>
-                    </Grid.ColumnDefinitions>
-                    <DataGrid AutoGenerateColumns="True" ItemsSource="{Binding HistDTData, UpdateSourceTrigger=PropertyChanged, Mode=OneWay}">
-                        
-                    </DataGrid>
-                    <Grid Grid.Column="1">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="70"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <Calendar x:Name="downtimestartcal" Height="180" SelectedDate="{Binding DTSTDT, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}"/>
-                            <Calendar x:Name="downtimestopcal" Height="180" SelectedDate="{Binding DTSPDT, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1">
-                            <Button Margin="5 100 5 0" mvx:Bi.nd="Command HistoricalDowntime" >Run</Button>
-                            <Button Margin="5 100 5 0">Export</Button>
-                        </StackPanel>
-                    </Grid>
-                    
-                </Grid>
-            </TabItem>
+        <TabControl x:Name="ReportTabs" Grid.Row="1" SelectionChanged="TabControl_SelectionChanged">
         </TabControl>
     </Grid>
 </views:MvxWpfView>
