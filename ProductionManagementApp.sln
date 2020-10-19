@@ -5,7 +5,9 @@ VisualStudioVersion = 16.0.29905.134
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProductionManagementApp.Core", "ProductionManagementApp.Core\ProductionManagementApp.Core.csproj", "{20BA84AB-8930-4FF6-B500-0A4A69BB033F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProductionManagementApp.WPF", "ProductionManagementApp.WPF\ProductionManagementApp.WPF.csproj", "{D4C829AE-722D-4BEB-9BAD-620FCE6401B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProductionManagementApp.WPF", "ProductionManagementApp.WPF\ProductionManagementApp.WPF.csproj", "{D4C829AE-722D-4BEB-9BAD-620FCE6401B0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProductionManagementApp.DynamicReports", "ProductionManagementApp.DynamicReports\ProductionManagementApp.DynamicReports.csproj", "{9C8CEAEE-496B-46F3-AB52-94E2A7CADA62}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{D4C829AE-722D-4BEB-9BAD-620FCE6401B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D4C829AE-722D-4BEB-9BAD-620FCE6401B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D4C829AE-722D-4BEB-9BAD-620FCE6401B0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C8CEAEE-496B-46F3-AB52-94E2A7CADA62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C8CEAEE-496B-46F3-AB52-94E2A7CADA62}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C8CEAEE-496B-46F3-AB52-94E2A7CADA62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C8CEAEE-496B-46F3-AB52-94E2A7CADA62}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
