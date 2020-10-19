@@ -1,7 +1,6 @@
 ﻿using Dapper;
 using DynamicReports.Data_Types;
 using Oracle.ManagedDataAccess.Client;
-using ProductionManagementApp.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -30,11 +29,11 @@ namespace DynamicReports
         public List<Dictionary<int, QueryResult>> MatchedResults { get; set; }
         public List<ExpandoObject> Results { get; set; }
 
-        public Report(string path, ReportUserModel user, string client, DateTime start, DateTime stop)
+        public Report(string path, List<string> users, string client, DateTime start, DateTime stop)
         {
             Client = client;
 
-            Users = user.Users;
+            Users = users;
 
             StartTime = start;
 

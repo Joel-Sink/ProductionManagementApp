@@ -15,8 +15,4 @@
     <Folder Include="Queries\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\ProductionManagementApp\ProductionManagementApp.Core\ProductionManagementApp.Core.csproj" />
-  </ItemGroup>
-
 </Project>
